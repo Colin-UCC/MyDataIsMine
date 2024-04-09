@@ -1,0 +1,23 @@
+<resources>
+    <string name="app_name">My Data Is Mine</string>
+    <string name="sensor_channel_name">Accelerometer Service Channel</string>
+    <string name="sensor_channel_description">Notifications for Accelerometer Service</string>
+
+    <string name="notification_title">VPN Service Active</string>
+    <string name="notification_message">The VPN service is running in the background.</string>
+    <string name="ticker_text">VPN Service Started</string>
+
+    <string name="packet_channel_name">Packet Interceptor Channel</string>
+    <string name="packet_channel_description">Notifications for Packet Interceptor service</string>
+
+    <string name="monitor_channel_name">Sensor Monitoring Service</string>
+    <string name="monitor_channel_description">This channel is used for the foreground service that monitors sensor activity.</string>
+
+    <string name="login_failed">Login failed. Please check your credentials and try again.</string>
+
+    <string name="registration_failed">Registration failed. Please try again later.</string>
+
+    <string name="error_field_required">Email is required</string>
+    <string name="error_invalid_email">Please provide a valid email</string>
+
+</resources>

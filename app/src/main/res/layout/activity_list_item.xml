@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="8dp">
+
+    <TextView
+        android:id="@+id/sourceIpTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Source IP: " />
+
+    <TextView
+        android:id="@+id/destinationIpTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Destination IP: " />
+
+    <TextView
+        android:id="@+id/protocolTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Protocol: " />
+
+    <TextView
+        android:id="@+id/sizeTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Packet Size: " />
+
+    <TextView
+        android:id="@+id/timeStampTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Timestamp: " />
+
+    <!-- Add more TextViews or views for other packet data here -->
+
+</LinearLayout>

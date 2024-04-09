@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/accelerometerData"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Accelerometer Data"
+        android:textSize="18sp" />
+
+    <Button
+        android:id="@+id/startServiceButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Start Service" />
+
+    <Button
+        android:id="@+id/stopServiceButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Stop Service"
+        android:enabled="false" />
+
+    <Button
+        android:id="@+id/startVpnButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Start VPN"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="16dp"/>
+
+    <Button
+        android:id="@+id/stopVpnButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Stop VPN"
+        android:layout_below="@id/startVpnButton"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="16dp"
+        android:visibility="gone"/>
+
+    <Button
+        android:id="@+id/goToPacketStreamButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Go to PacketStreamActivity"
+        android:layout_below="@id/stopVpnButton"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="16dp"/>
+
+    <Button
+        android:id="@+id/btnToggleService"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Start Monitoring"
+        app:layout_constraintTop_toBottomOf="@+id/tvHelloWorld"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"/>
+
+    <Button
+        android:id="@+id/btnStartStopNetworkMonitoring"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Start Monitoring"
+        android:onClick="toggleNetworkMonitoring"/>
+
+    <Button
+        android:id="@+id/signOutButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Sign Out" />
+    <Button
+        android:id="@+id/btnLogDatabase"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Log Database" />
+
+    <Button
+        android:id="@+id/sensorServiceLogButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Sensor Service Logs" />
+
+    <Button
+        android:id="@+id/testUploadButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Test Upload" />
+
+    <Button
+        android:id="@+id/cancelAllWorkButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Cancel All Work" />
+
+    <Button
+        android:id="@+id/btnConvertAndUpload"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Convert DB to CSV and Upload" />
+
+
+    <com.github.mikephil.charting.charts.LineChart
+        android:id="@+id/chart"
+        android:layout_width="match_parent"
+        android:layout_height="231dp" />
+
+    <TextView
+        android:id="@+id/debugInfo"
+        android:layout_width="match_parent"
+        android:layout_height="248dp"
+        android:layout_weight="1"
+        android:background="#E0E0E0"
+        android:padding="8dp"
+        android:scrollbars="vertical"
+        android:text="Debug Info"
+        android:textSize="16sp" />
+</LinearLayout>
