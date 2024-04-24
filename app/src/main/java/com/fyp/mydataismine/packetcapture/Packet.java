@@ -14,7 +14,7 @@ import java.util.Arrays;
  * Represents a network packet, including both IPv4 and IPv6 packets, and provides methods
  * for parsing and accessing different components of the packet, such as headers and payload.
  */
-public final class Packet {
+public class Packet {
 
     // Constant declarations
     public static final int IP4_HEADER_SIZE = 20;
@@ -62,32 +62,6 @@ public final class Packet {
         }
         this.backingBuffer = buffer.asReadOnlyBuffer();
     }
-
-
-//    public Packet(ByteBuffer buffer) throws IllegalArgumentException {
-//        try {
-//            // Determine if the packet is IPv4 or IPv6 based on the first 4 bits
-//            buffer.mark();
-//            byte version = (byte) (buffer.get() >> 4);
-//            buffer.reset();
-//
-//            if (version == 4) {
-//                // IPv4
-//                this.ip4Header = new IP4Header(buffer);
-//                parseIPv4(buffer);
-//            } else if (version == 6) {
-//                // IPv6
-//                this.ip6Header = new IP6Header(buffer);
-//                parseIPv6(buffer);
-//            } else {
-//                throw new IllegalArgumentException("Unsupported IP version: " + version);
-//            }
-//        } catch (UnknownHostException e) {
-//            throw new IllegalArgumentException("Invalid IP address", e);
-//        }
-//
-//        this.backingBuffer = buffer.asReadOnlyBuffer();
-//    }
 
     /**
      * Parses the IPv4 header from the given ByteBuffer and initializes the appropriate transport layer header.
@@ -393,7 +367,7 @@ public final class Packet {
      *
      * @param payloadSize The size of the TCP payload in bytes, used to calculate the checksum.
      */
-    private void updateTCPChecksum(int payloadSize) {
+    void updateTCPChecksum(int payloadSize) {
         int sum = 0;
         int tcpLength = TCP_HEADER_SIZE + payloadSize;
 
@@ -565,5 +539,14 @@ public final class Packet {
             return ip6Header.getHopLimit();
         }
         return -1; // Return an error value or throw an exception for IPv4 packets
+    }
+
+
+    public Object getIpHeader() {
+        if(isIPv6()) {
+            return ip6Header;
+        } else {
+            return ip4Header;
+        }
     }
 }

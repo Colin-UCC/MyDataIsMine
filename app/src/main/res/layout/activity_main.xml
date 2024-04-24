@@ -1,124 +1,239 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:card_view="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp">
+    android:fillViewport="true">
 
-    <TextView
-        android:id="@+id/accelerometerData"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Accelerometer Data"
-        android:textSize="18sp" />
+        android:orientation="vertical"
+        android:padding="16dp">
 
-    <Button
-        android:id="@+id/startServiceButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Start Service" />
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            card_view:cardElevation="4dp"
+            card_view:cardCornerRadius="8dp">
 
-    <Button
-        android:id="@+id/stopServiceButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Stop Service"
-        android:enabled="false" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
 
-    <Button
-        android:id="@+id/startVpnButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Start VPN"
-        android:layout_centerHorizontal="true"
-        android:layout_marginBottom="16dp"/>
+                <TextView
+                    android:id="@+id/accelerometerDataHeader"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Accelerometer Data Collection"
+                    android:textSize="18sp"/>
 
-    <Button
-        android:id="@+id/stopVpnButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Stop VPN"
-        android:layout_below="@id/startVpnButton"
-        android:layout_centerHorizontal="true"
-        android:layout_marginTop="16dp"
-        android:visibility="gone"/>
+                <Button
+                    android:id="@+id/startServiceButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Start Service" />
 
-    <Button
-        android:id="@+id/goToPacketStreamButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Go to PacketStreamActivity"
-        android:layout_below="@id/stopVpnButton"
-        android:layout_centerHorizontal="true"
-        android:layout_marginTop="16dp"/>
+                <Button
+                    android:id="@+id/stopServiceButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Stop Service"
+                    android:visibility="gone"
+                    android:enabled="false" />
 
-    <Button
-        android:id="@+id/btnToggleService"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Start Monitoring"
-        app:layout_constraintTop_toBottomOf="@+id/tvHelloWorld"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"/>
+                <com.github.mikephil.charting.charts.LineChart
+                    android:id="@+id/chart"
+                    android:layout_width="match_parent"
+                    android:layout_height="231dp"/>
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
 
-    <Button
-        android:id="@+id/btnStartStopNetworkMonitoring"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Start Monitoring"
-        android:onClick="toggleNetworkMonitoring"/>
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            card_view:cardElevation="4dp"
+            card_view:cardCornerRadius="8dp">
 
-    <Button
-        android:id="@+id/signOutButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Sign Out" />
-    <Button
-        android:id="@+id/btnLogDatabase"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Log Database" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
 
-    <Button
-        android:id="@+id/sensorServiceLogButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Sensor Service Logs" />
+                <TextView
+                    android:id="@+id/networkMonitorHeader"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Background Data Transfer Monitor"
+                    android:textSize="18sp" />
 
-    <Button
-        android:id="@+id/testUploadButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Test Upload" />
+                <Button
+                    android:id="@+id/startVpnButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Start"
+                    android:layout_gravity="left"/>
 
-    <Button
-        android:id="@+id/cancelAllWorkButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Cancel All Work" />
+                <Button
+                    android:id="@+id/stopVpnButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Stop"
+                    android:visibility="gone"
+                    android:layout_gravity="left"/>
 
-    <Button
-        android:id="@+id/btnConvertAndUpload"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Convert DB to CSV and Upload" />
+                <Button
+                    android:id="@+id/goToPacketStreamButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="View"
+                    android:layout_gravity="left"/>
+
+                <Button
+                    android:id="@+id/btnStartStopNetworkMonitoring"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Start Monitoring"
+                    android:onClick="toggleNetworkMonitoring"/>
+
+                <com.github.mikephil.charting.charts.LineChart
+                    android:id="@+id/networkChart"
+                    android:layout_width="match_parent"
+                    android:layout_height="231dp"/>
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- Sensor Usage Section -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            card_view:cardElevation="4dp"
+            card_view:cardCornerRadius="8dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:id="@+id/sensorUsageHeader"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Sensor Usage"
+                    android:textSize="18sp" />
+
+                <Button
+                    android:id="@+id/btnToggleService"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Start"
+                    android:layout_gravity="left"/>
 
 
-    <com.github.mikephil.charting.charts.LineChart
-        android:id="@+id/chart"
-        android:layout_width="match_parent"
-        android:layout_height="231dp" />
+                <com.github.mikephil.charting.charts.LineChart
+                    android:id="@+id/sensorActivityChart"
+                    android:layout_width="match_parent"
+                    android:layout_height="250dp"
+                    android:layout_margin="8dp" />
 
-    <TextView
-        android:id="@+id/debugInfo"
-        android:layout_width="match_parent"
-        android:layout_height="248dp"
-        android:layout_weight="1"
-        android:background="#E0E0E0"
-        android:padding="8dp"
-        android:scrollbars="vertical"
-        android:text="Debug Info"
-        android:textSize="16sp" />
-</LinearLayout>
+
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- Exit Section -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            card_view:cardElevation="4dp"
+            card_view:cardCornerRadius="8dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:id="@+id/exitHeader"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Exit"
+                    android:textSize="18sp" />
+
+                <Button
+                    android:id="@+id/signOutButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Sign Out"
+                    android:layout_gravity="left
+"/>
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- Debug Options Section -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            card_view:cardElevation="4dp"
+            card_view:cardCornerRadius="8dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:id="@+id/debugOptions"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Testing Tools"
+                    android:textSize="18sp" />
+
+                <Button
+                    android:id="@+id/btnLogDatabase"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Log Database"
+                    android:layout_gravity="left"/>
+
+                <Button
+                    android:id="@+id/sensorServiceLogButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Sensor Service Logs"
+                    android:layout_gravity="left"/>
+
+                <Button
+                    android:id="@+id/testUploadButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Test Upload"
+                    android:layout_gravity="left"/>
+
+                <Button
+                    android:id="@+id/cancelAllWorkButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Cancel All Work"
+                    android:layout_gravity="left"/>
+
+                <Button
+                    android:id="@+id/btnConvertAndUpload"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Convert DB to CSV and Upload"
+                    android:layout_gravity="left"/>
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+    </LinearLayout>
+</ScrollView>

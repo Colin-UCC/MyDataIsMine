@@ -4,7 +4,8 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 /**
- * Represents the information of a network packet, including source and destination IPs, payload size, and protocol used.
+ * Represents the information of a network packet, including source and destination IPs, payload size,
+ * protocol used, geographical location, and organization name.
  */
 public class PacketInfo {
     // Member variables for packet details
@@ -13,22 +14,23 @@ public class PacketInfo {
     private int payloadSize;
     private String protocol;
     private String location;
+    private String organization; // Added new field for organization
     private String timestamp;
 
     /**
      * Constructor to initialize the packet information.
      *
-     * @param sourceIp      The source IP address of the packet.
-     * @param destinationIp The destination IP address of the packet.
-     * @param payloadSize   The size of the packet's payload.
-     * @param protocol      The protocol used by the packet.
+     * @param sourceIp       The source IP address of the packet.
+     * @param destinationIp  The destination IP address of the packet.
+     * @param payloadSize    The size of the packet's payload.
+     * @param protocol       The protocol used by the packet.
      */
     public PacketInfo(String sourceIp, String destinationIp, int payloadSize, String protocol) {
         this.sourceIp = sourceIp;
         this.destinationIp = destinationIp;
         this.payloadSize = payloadSize;
         this.protocol = protocol;
-        this.timestamp = generateTimestamp();
+        this.timestamp = generateTimestamp(); // Timestamp for creation moment
     }
 
     /**
@@ -36,7 +38,18 @@ public class PacketInfo {
      *
      * @param location The location of the packet capture.
      */
+    public void setLocation(String location) {
+        this.location = location;
+    }
 
+    /**
+     * Sets the organization associated with the packet.
+     *
+     * @param organization The organization name associated with the packet's IP.
+     */
+    public void setOrganization(String organization) {
+        this.organization = organization;
+    }
 
     /**
      * Generates a timestamp for when the packet info is created.
@@ -48,6 +61,7 @@ public class PacketInfo {
         Date now = new Date();
         return dateFormat.format(now);
     }
+
     @Override
     public String toString() {
         return "PacketInfo{" +
@@ -56,34 +70,53 @@ public class PacketInfo {
                 ", payloadSize=" + payloadSize +
                 ", protocol='" + protocol + '\'' +
                 ", location='" + location + '\'' +
+                ", organization='" + organization + '\'' + // Include organization in the output
+                ", timestamp='" + timestamp + '\'' +
                 '}';
     }
 
-    // Getters ans setters
+    // Getters and setters
     public String getSourceIp() {
         return sourceIp;
+    }
+
+    public void setSourceIp(String sourceIp) {
+        this.sourceIp = sourceIp;
     }
 
     public String getDestinationIp() {
         return destinationIp;
     }
 
+    public void setDestinationIp(String destinationIp) {
+        this.destinationIp = destinationIp;
+    }
+
     public int getPayloadSize() {
         return payloadSize;
+    }
+
+    public void setPayloadSize(int payloadSize) {
+        this.payloadSize = payloadSize;
     }
 
     public String getProtocol() {
         return protocol;
     }
-    public void setLocation(String location) {
-        this.location = location;
+
+    public void setProtocol(String protocol) {
+        this.protocol = protocol;
     }
+
     public String getLocation() {
         return location;
     }
-    public String getTimestamp() {
-        return timestamp; // Return the stored timestamp
+
+    public String getOrganization() {
+        return organization;
     }
 
+    public String getTimestamp() {
+        return timestamp;
+    }
 }
-

@@ -161,5 +161,11 @@ public class TCPHeader {
     public int getDestinationPort() {
         return destinationPort;
     }
+
+    public byte getFlags() { return flags; }
+
+    public long getSequenceNumber() { return sequenceNumber; }
+
+    public long getAcknowledgmentNumber() { return acknowledgementNumber; }
 }
 

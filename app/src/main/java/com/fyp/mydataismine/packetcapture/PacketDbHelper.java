@@ -12,9 +12,18 @@ import android.database.sqlite.SQLiteOpenHelper;
  */
 public class PacketDbHelper extends SQLiteOpenHelper {
     private static final String DATABASE_NAME = "PacketData.db";
-    private static final int DATABASE_VERSION = 1;
+    private static final int DATABASE_VERSION = 2;
 
-    private static final String TABLE_CREATE =
+    private static PacketDbHelper instance;
+
+    public static synchronized PacketDbHelper getInstance(Context context) {
+        if (instance == null) {
+            instance = new PacketDbHelper(context.getApplicationContext());
+        }
+        return instance;
+    }
+
+        private static final String TABLE_CREATE =
             "CREATE TABLE packets (" +
                     "id INTEGER PRIMARY KEY," +
                     "timestamp DATETIME DEFAULT CURRENT_TIMESTAMP," +
@@ -56,8 +65,8 @@ public class PacketDbHelper extends SQLiteOpenHelper {
      */
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        // TODO: Upgrade logic here
-
+        db.execSQL("DROP TABLE IF EXISTS packets");
+        onCreate(db);
     }
 
     /**
@@ -69,16 +78,29 @@ public class PacketDbHelper extends SQLiteOpenHelper {
      * @param payloadSize   The size of the packet payload.
      * @param protocol      The protocol used by the packet.
      */
-    public void insertPacketData(String sourceIp, String destinationIp, int payloadSize, String protocol) {
+//    public void insertPacketData(String sourceIp, String destinationIp, int payloadSize, String protocol) {
+//        SQLiteDatabase db = this.getWritableDatabase();
+//        ContentValues values = new ContentValues();
+//        values.put("source_ip", sourceIp);
+//        values.put("destination_ip", destinationIp);
+//        values.put("payload_size", payloadSize);
+//        values.put("protocol", protocol);
+//
+//        db.insert("packets", null, values);
+//        db.close();
+//    }
+    public long insertPacketData(String sourceIp, String destinationIp, int payloadSize, String protocol) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues values = new ContentValues();
         values.put("source_ip", sourceIp);
         values.put("destination_ip", destinationIp);
         values.put("payload_size", payloadSize);
-        values.put("protocol", protocol);
+        values.put("protocol_type", protocol);
 
-        db.insert("packets", null, values);
-        db.close();
+        long rowId = db.insertOrThrow("packets", null, values);
+        //db.close();
+        return rowId;
     }
+
 }
 

@@ -93,34 +93,34 @@ public class PacketStreamActivity extends AppCompatActivity {
     }
 
 
-    private BroadcastReceiver packetReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            Log.d("TAG", "Received broadcast in PacketStreamActivity");
-            if (intent != null && ACTION_NEW_PACKET.equals(intent.getAction())) {
-                Log.d("TAG", "Received broadcast in PacketStreamActivity");
-                String sourceIp = intent.getStringExtra("sourceIp");
-                String destinationIp = intent.getStringExtra("destinationIp");
-                int payloadSize = intent.getIntExtra("payloadSize", 0);
-                String protocol = intent.getStringExtra("protocol");
-
-                // Create a PacketInfo object and update UI
-                PacketInfo packetInfo = new PacketInfo(sourceIp, destinationIp, payloadSize, protocol);
-                addPacketToUI(packetInfo);
-            }
-        }
-    };
+//    private BroadcastReceiver packetReceiver = new BroadcastReceiver() {
+//        @Override
+//        public void onReceive(Context context, Intent intent) {
+//            Log.d("TAG", "Received broadcast in PacketStreamActivity");
+//            if (intent != null && ACTION_NEW_PACKET.equals(intent.getAction())) {
+//                Log.d("TAG", "Received broadcast in PacketStreamActivity");
+//                String sourceIp = intent.getStringExtra("sourceIp");
+//                String destinationIp = intent.getStringExtra("destinationIp");
+//                int payloadSize = intent.getIntExtra("payloadSize", 0);
+//                String protocol = intent.getStringExtra("protocol");
+//
+//                // Create a PacketInfo object and update UI
+//                PacketInfo packetInfo = new PacketInfo(sourceIp, destinationIp, payloadSize, protocol);
+//                addPacketToUI(packetInfo);
+//            }
+//        }
+//    };
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (isFinishing()) {
-            try {
-                unregisterReceiver(packetReceiver);
-            } catch (IllegalArgumentException e) {
-                Log.e("PacketStreamActivity", "Receiver not registered", e);
-            }
-        }
+//        if (isFinishing()) {
+//            try {
+//                unregisterReceiver(packetReceiver);
+//            } catch (IllegalArgumentException e) {
+//                Log.e("PacketStreamActivity", "Receiver not registered", e);
+//            }
+//        }
     }
 
     private void initRecyclerView() {

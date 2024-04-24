@@ -5,7 +5,9 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -16,13 +18,17 @@ import android.text.format.DateFormat;
 import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.fyp.mydataismine.MainActivity;
 import com.fyp.mydataismine.R;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 
@@ -31,16 +37,25 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+
+import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
+import com.google.gson.reflect.TypeToken;
+import java.lang.reflect.Type;
 
 /**
  * A service that monitors sensor usage on the device, logging access details and uploading the logs to Firebase.
@@ -51,8 +66,10 @@ public class SensorMonitorService extends Service {
     public static final String ACTION_WRITE_AND_UPLOAD_LOG = "com.fyp.mydataismine.sensormanager.ACTION_WRITE_AND_UPLOAD_LOG";
     private ScheduledExecutorService scheduler;
     private DatabaseReference mDatabase;
+    private static final String PREFS_NAME = "SensorServicePrefs";
+    private static final String EVENTS_KEY = "LoggedEvents";
     private Map<String, String> sensorMap = new HashMap<>();
-    private Set<String> loggedEvents = new HashSet<>();
+    private Map<String, Long> loggedEvents = new HashMap<>();
 
     /**
      * Initializes the service, setting up the notification channel and starting sensor monitoring.
@@ -61,10 +78,12 @@ public class SensorMonitorService extends Service {
     public void onCreate() {
         super.onCreate();
         createNotificationChannel();
+        loadLoggedEvents();
         startMonitoringSensorUsage();
         initFirebaseDatabase();
         //getAllPackageNames();
         getAllNonSystemPackageNames();
+        printLoggedEvents();
     }
 
     /**
@@ -105,10 +124,12 @@ public class SensorMonitorService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
+        saveLoggedEvents();
         // Shut down the scheduler to stop monitoring when service is destroyed
         if (scheduler != null && !scheduler.isShutdown()) {
             scheduler.shutdown();
         }
+
     }
 
     /**
@@ -147,18 +168,18 @@ public class SensorMonitorService extends Service {
      * Starts monitoring sensor usage, setting up a scheduled task to perform monitoring at regular intervals.
      */
     private void startMonitoringSensorUsage() {
-        // Initialize the ScheduledExecutorService
         if (scheduler == null || scheduler.isShutdown()) {
             scheduler = Executors.newSingleThreadScheduledExecutor();
         }
-        // Schedule the monitoring task to run every 2 minutes
-        scheduler.scheduleAtFixedRate(this::monitorSensorUsage, 0, 2, TimeUnit.MINUTES);
+        scheduler.scheduleAtFixedRate(this::monitorSensorUsage, 0, 1, TimeUnit.MINUTES);
+        scheduler.scheduleAtFixedRate(this::cleanOldLoggedEvents, 1, 1, TimeUnit.HOURS);
     }
 
     /**
      * Monitors sensor usage, capturing sensor access details and logging them.
      */
     private void monitorSensorUsage() {
+        Log.d("SensorMonitor", "Monitoring sensor usage started.");
         Process process = null;
         BufferedReader reader = null;
         FileWriter writer = null;
@@ -169,13 +190,13 @@ public class SensorMonitorService extends Service {
             reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
 
             logFile = new File(getExternalFilesDir(null), "sensor_service_log.txt");
-            writer = new FileWriter(logFile, false); // true to append, false to overwrite
+            writer = new FileWriter(logFile, false);
 
             String line;
 
             while ((line = reader.readLine()) != null) {
                 //Log.d("SensorMonitorService", line);
-                writer.write(line + "\n"); // Write each line to the file
+                //writer.write(line + "\n"); // Write each line to the file
                 processSensorUsageLine(line);
             }
         } catch (IOException e) {
@@ -245,7 +266,7 @@ public class SensorMonitorService extends Service {
     }
 
     private boolean isSystemApp(String packageName) {
-        return packageName.startsWith("com.android.") || packageName.startsWith("com.google.");
+        return packageName.startsWith("com.android.") || packageName.startsWith("com.google.") || packageName.startsWith("android.");
     }
 
     /**
@@ -253,7 +274,7 @@ public class SensorMonitorService extends Service {
      * @param line A string containing a line of sensor usage data.
      */
     private void parseSensorList(String line) {
-        // Example line format: "0x0000000b) BMI160 Accelerometer | BOSCH ..."
+        // line format: '0x0000000b) BMI160 Accelerometer | BOSCH'
         if (line.contains(")")) {
             String[] parts = line.split("\\) ");
             if (parts.length > 1) {
@@ -265,6 +286,11 @@ public class SensorMonitorService extends Service {
         }
     }
 
+    /**
+     * Processes a line of sensor usage information to update sensor logs or handle special cases like resetting the sensor list.
+     *
+     * @param line the string line from the sensor log to be processed.
+     */
     private void processSensorUsageLine(String line) {
         if (line.startsWith("Sensor List:")) {
             // Clear previous sensor list entries
@@ -275,40 +301,53 @@ public class SensorMonitorService extends Service {
         // Parse the sensor list to fill the sensorMap
         if (line.startsWith("0x")) {
             parseSensorList(line);
-            return; // Exit the method after parsing the sensor list line
+            return;
         }
 
-        if (line.contains("pid=") && line.contains("package=")) {
+        if (line.contains("pid=") && line.contains("package=")) {// && isNewEntry(line)) {
             try {
                 String[] parts = line.split("\\s+");
                 String time = parts[0];
-                String sensorCode = parts[2];  // Assuming the sensor code is the third element after splitting by space
-                String packageName = line.substring(line.indexOf("package=") + 8);
 
-                if (isSystemApp(packageName)) {
-                    return; // Skip system apps
-                }
-
-                for (String part : parts) {
-                    if (part.startsWith("package=")) {
-                        packageName = part.substring("package=".length());
-                        break;
+                if (isCurrentOrPastTime(time)) {
+                    String sensorCode = parts[2];
+                    String packageName = line.substring(line.indexOf("package=") + 8);
+                    if (isSystemApp(packageName)) {
+                        return;
                     }
-                }
 
-                // Ensure sensorCode has the correct format before looking it up
-                if (!sensorCode.startsWith("0x")) {
-                    sensorCode = "0x" + sensorCode;
-                }
+                    String currentDate = new java.text.SimpleDateFormat("yyyy-MM-dd").format(new java.util.Date());
+                    String fullTimestamp = currentDate + " " + time; // Combine date and time
 
-                String sensorName = sensorMap.get(sensorCode);
-                String eventKey = packageName + "_" + sensorCode + "_" + time;
 
-                if (sensorName != null && !loggedEvents.contains(eventKey)) {
-                    loggedEvents.add(eventKey); // Add to logged events to avoid duplicates
-                    SensorLogEntry entry = new SensorLogEntry(packageName, sensorName, sensorCode, time);
-                    uploadSensorLogEntryToFirebase(entry);
-                    Log.d("SensorMonitorService", entry.toString());
+                    for (String part : parts) {
+                        if (part.startsWith("package=")) {
+                            packageName = part.substring("package=".length());
+                            break;
+                        }
+                    }
+                    if (!sensorCode.startsWith("0x")) {
+                        sensorCode = "0x" + sensorCode;
+                    }
+                    String sensorName = sensorMap.get(sensorCode);
+
+                    if (sensorName != null) {
+                        String eventKey = packageName + "_" + sensorCode + "_" + fullTimestamp;
+                        if (addEventToLog(eventKey)) {
+                            SensorLogEntry entry = new SensorLogEntry(packageName, sensorName, sensorCode, fullTimestamp);
+                            Log.w("New Log", "new log added: " + eventKey);
+                            uploadSensorLogEntryToFirebase(entry);
+
+                            // Notify the user with a notification
+                            notifyUser(entry);
+
+                            Log.d("SensorMonitorService", "New Event Logged: " + entry.toString());
+                        } else {
+                            Log.d("SensorMonitorService", "Duplicate Event Skipped: " + eventKey);
+                        }
+                    }
+            } else {
+                    Log.d("SensorMonitorService", "Skipped entry from previous day: " + line);
                 }
             } catch (Exception e) {
                 Log.e("SensorMonitorService", "Error processing sensor usage line", e);
@@ -316,60 +355,125 @@ public class SensorMonitorService extends Service {
         }
     }
 
+    /**
+     * Adds a new event to the logged events if it is not already logged.
+     *
+     * @param entry the string representing the unique key of the event to log.
+     * @return true if the event is added, false if it is a duplicate.
+     */
+    private boolean addEventToLog(String entry) {
+        synchronized (this) {
+            long currentTime = System.currentTimeMillis();
+            if (!loggedEvents.containsKey(entry)) {
+                loggedEvents.put(entry, currentTime);
+                Log.d("SensorMonitorService", "Event added to log: " + entry);
+                return true;  // Indicates the entry was added
+            }
+            Log.d("SensorMonitorService", "Attempt to add duplicate event prevented: " + entry);
+            return false;  // Indicates the entry was not added because it's a duplicate
+        }
+    }
+
+    /**
+     * Retrieves the unique user identifier from Firebase Authentication.
+     *
+     * @return the current user's unique ID if logged in, otherwise null.
+     */
     private String getCurrentUserId() {
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         return (user != null) ? user.getUid() : null;
     }
 
+    /**
+     * Uploads a sensor log entry to Firebase, ensuring no duplicates are created.
+     *
+     * @param entry the SensorLogEntry object to upload.
+     */
     private void uploadSensorLogEntryToFirebase(SensorLogEntry entry) {
         String userId = getCurrentUserId();
         if (userId != null && mDatabase != null) {
-            String basePath = "users/" + userId + "/sensorlogs";
-            String key = mDatabase.child(basePath).push().getKey();
-            if (key != null) {
-                mDatabase.child(basePath).child(key).setValue(entry)
-                        .addOnSuccessListener(aVoid -> Log.d("FirebaseDB", "Data uploaded successfully to path: " + basePath))
-                        .addOnFailureListener(e -> Log.e("FirebaseDB", "Failed to upload data to path: " + basePath, e));
-            }
-        }
-    }
+            String uniqueKey = entry.createUniqueKey(); // Generate a unique key for the entry
+            DatabaseReference entryRef = mDatabase.child("users").child(userId).child("sensorlogs").child(uniqueKey);
 
-    private List<String> getAllPackageNames() {
-        List<String> packageNames = new ArrayList<>();
-        Process process = null;
-        BufferedReader reader = null;
-
-        try {
-            // Execute the 'pm list packages' command
-            process = Runtime.getRuntime().exec(new String[]{"su", "-c", "pm list packages"});
-            reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-
-            String line;
-            while ((line = reader.readLine()) != null) {
-
-                // Lines are of the form: package:com.example.package
-                String packageName = line.split(":")[1];
-                Log.d("package list: ", line);
-                packageNames.add(packageName);
-
-            }
-        } catch (IOException e) {
-            Log.e("SensorMonitorService", "Error fetching package names", e);
-        } finally {
-            if (reader != null) {
-                try {
-                    reader.close();
-                } catch (IOException e) {
-                    Log.e("SensorMonitorService", "Error closing stream", e);
+            entryRef.addListenerForSingleValueEvent(new ValueEventListener() {
+                @Override
+                public void onDataChange(DataSnapshot dataSnapshot) {
+                    if (!dataSnapshot.exists()) { // If the entry does not exist, push it
+                        entryRef.setValue(entry)
+                                .addOnSuccessListener(aVoid -> Log.d("FirebaseDB", "Data uploaded successfully."))
+                                .addOnFailureListener(e -> Log.e("FirebaseDB", "Failed to upload data.", e));
+                    } else {
+                        Log.d("FirebaseDB", "Duplicate entry not uploaded.");
+                    }
                 }
-            }
-            if (process != null) {
-                process.destroy();
-            }
+
+                @Override
+                public void onCancelled(DatabaseError databaseError) {
+                    Log.e("FirebaseDB", "Firebase database error: " + databaseError.getMessage());
+                }
+            });
         }
-        return packageNames;
     }
 
+    /**
+     * Sends a notification to the user about a sensor event.
+     *
+     * @param entry the sensor log entry based on which the notification is created.
+     */
+
+    private void notifyUser(SensorLogEntry entry) {
+        NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (notificationManager == null) return;
+
+        String notificationChannelId = "sensor_usage_notification_channel";
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(
+                    notificationChannelId,
+                    "Sensor Usage Notifications",
+                    NotificationManager.IMPORTANCE_DEFAULT
+            );
+            notificationManager.createNotificationChannel(channel);
+        }
+
+        Notification notification = new NotificationCompat.Builder(this, notificationChannelId)
+                .setContentTitle("New Sensor Activity Detected")
+                .setContentText("Sensor: " + entry.getSensorName() + " used by " + entry.getPackageName())
+                .setSmallIcon(R.drawable.ic_notification)  // Ensure you have an appropriate icon here
+                .setAutoCancel(true)
+                .build();
+
+        notificationManager.notify(new Random().nextInt(), notification);
+    }
+
+
+    /**
+     * Checks if the provided log time is current or in the past compared to the system's current time.
+     *
+     * @param logTime the time string from the log entry.
+     * @return true if the log time is current or past, false otherwise.
+     */
+    private boolean isCurrentOrPastTime(String logTime) {
+        try {
+            SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm:ss");
+            Date logDate = timeFormat.parse(logTime); // Parse the log's time
+            Date currentDate = new Date(); // Get the current system time
+
+            // Format both dates back to time-only strings to compare just the times
+            String currentTime = timeFormat.format(currentDate);
+
+            // If the log time is greater than the current time, it's from the past day
+            return logDate.compareTo(timeFormat.parse(currentTime)) <= 0;
+        } catch (ParseException e) {
+            Log.e("SensorMonitorService", "Failed to parse time: " + logTime, e);
+            return false;
+        }
+    }
+
+    /**
+     * Fetches all installed package names on the device that do not belong to system apps.
+     *
+     * @return a list of non-system application package names.
+     */
     private List<String> getAllNonSystemPackageNames() {
         List<String> packageNames = new ArrayList<>();
         Process process = null;
@@ -413,71 +517,71 @@ public class SensorMonitorService extends Service {
         return packageNames;
     }
 
-    private void notifyUserAboutSensorUsage(String packageName, String notificationText) {
-        int notificationId = packageName.hashCode();
-
-        Intent notificationIntent = new Intent(this, MainActivity.class);
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-
-        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("Sensor Access Alert")
-                .setContentText(notificationText)
-                .setSmallIcon(R.drawable.ic_launcher_foreground)
-                .setContentIntent(pendingIntent)
-                .build();
-
-        NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-        notificationManager.notify(notificationId, notification);
+    /**
+     * Prints all currently logged events to the debug log.
+     */
+    public void printLoggedEvents() {
+        Log.d("SensorMonitorService", "Current Logged Events:");
+        for (Map.Entry<String, Long> entry : loggedEvents.entrySet()) {
+            // Log the event along with its timestamp
+            Log.d("LOGGED EVENTS", "Event: " + entry.getKey() + ", Timestamp: " + entry.getValue());
+        }
     }
 
-    private boolean isSystemPackage(PackageManager pm, String packageName) {
-        // Broad criteria for system packages
-        if (packageName.startsWith("com.android.") || packageName.startsWith("com.google.android.") || packageName.startsWith("android.")) {
-            return true;
-        }
+    /**
+     * Saves the current state of logged events to SharedPreferences.
+     */
+    private void saveLoggedEvents() {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        SharedPreferences.Editor editor = prefs.edit();
+        Gson gson = new Gson();
+        String json = gson.toJson(loggedEvents); // Serialize map to JSON string
+        editor.putString(EVENTS_KEY, json);
+        editor.apply();
+        Log.d("SensorMonitorService", "Logged events saved as JSON.");
+    }
 
+    /**
+     * Loads logged events from SharedPreferences back into the running application.
+     */
+    private void loadLoggedEvents() {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
         try {
-            ApplicationInfo ai = pm.getApplicationInfo(packageName, 0);
-            return (ai.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
-        } catch (PackageManager.NameNotFoundException e) {
-            // Log and treat unrecognized packages potentially as system components
-            //Log.d("pm", pm.toString());
-            //Log.d("SensorUsage", "Third Party package by found: " + packageName);
-            return false; // Treat as system package by default or based on your specific criteria
+            String json = prefs.getString(EVENTS_KEY, null);
+            if (json != null) {
+                Gson gson = new Gson();
+                Type type = new TypeToken<HashMap<String, Long>>(){}.getType();
+                HashMap<String, Long> map = gson.fromJson(json, type);
+                loggedEvents = map != null ? map : new HashMap<>();
+            } else {
+                loggedEvents = new HashMap<>();
+            }
+        } catch (Exception e) {
+            Log.e("Loading Error", "Error loading events from SharedPreferences", e);
+            loggedEvents = new HashMap<>();
+        }
+        Log.d("SensorMonitorService", "Logged events loaded from JSON.");
+    }
+
+    /**
+     * Removes logged events that are older than 24 hours from the current system time.
+     */
+    private void cleanOldLoggedEvents() {
+        long twentyFourHoursAgo = System.currentTimeMillis() - TimeUnit.HOURS.toMillis(24);
+        synchronized (this) {
+            Iterator<Map.Entry<String, Long>> it = loggedEvents.entrySet().iterator();
+            while (it.hasNext()) {
+                Map.Entry<String, Long> entry = it.next();
+                if (entry.getValue() < twentyFourHoursAgo) {
+                    it.remove();
+                    Log.d("SensorMonitorService", "Old event removed from log: " + entry.getKey());
+                }
+            }
         }
     }
 
-    private String getAppNameFromPackageName(String packageName) {
-        PackageManager packageManager = getApplicationContext().getPackageManager();
-        String appName;
-        try {
-            ApplicationInfo appInfo = packageManager.getApplicationInfo(packageName, 0);
-            appName = (String) packageManager.getApplicationLabel(appInfo);
-        } catch (PackageManager.NameNotFoundException e) {
-            Log.e("SensorMonitorService", "Package name not found: " + packageName, e);
-            appName = packageName; // Fallback to package name if the app name is not found
-        }
-        return appName;
-    }
-
-    private String extractSensorInfo(String line) {
-        // Implement this method to extract sensor information from the line
-        // This could involve parsing the line to find the sensor name or ID
-        return line.substring(line.indexOf("Sensor: ") + 8, line.indexOf(", PID:")); // Example extraction logic
-    }
-
-    private String extractPackageName(String line) {
-        // Implement this method to extract package name from the line
-        return line.substring(line.indexOf("package=") + 8).split(" ")[0]; // Example extraction logic
-    }
-
-    private void uploadSensorLogToFirebase(SensorLogEntry entry) {
-        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-        if (user != null) {
-            DatabaseReference databaseReference = FirebaseDatabase.getInstance().getReference("sensorLogs").child(user.getUid());
-            databaseReference.push().setValue(entry)
-                    .addOnSuccessListener(aVoid -> Log.d("FirebaseUpload", "Sensor log uploaded successfully."))
-                    .addOnFailureListener(e -> Log.e("FirebaseUpload", "Failed to upload sensor log.", e));
-        }
-    }
 }
+
+
+
+

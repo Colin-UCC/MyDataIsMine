@@ -26,25 +26,27 @@ public class AccelerometerService extends Service implements SensorEventListener
     private static final String CHANNEL_ID = "ForegroundServiceChannel";
     private static final float CHANGE_THRESHOLD = 3.5f;
     private static final long UPDATE_INTERVAL = 1000; // milliseconds
-    private SensorManager sensorManager;
-    private Sensor accelerometerSensor;
-    private Sensor gyroscopeSensor;
-    private Sensor magnetometerSensor;
-    private MovingAverageFilter filterX, filterY, filterZ;
+    protected SensorManager sensorManager;
+    protected Sensor accelerometerSensor;
+    //private Sensor gyroscopeSensor;
+    //private Sensor magnetometerSensor;
+    protected MovingAverageFilter filterX;
+    protected MovingAverageFilter filterY;
+    protected MovingAverageFilter filterZ;
     private long lastUpdate = 0;
     private int count = 0;
     private float prevAvgX = 0.0f, prevAvgY = 0.0f, prevAvgZ = 0.0f;
-    private DatabaseHelper databaseHelper;
+    protected DatabaseHelper databaseHelper;
 
     // Sensor data arrays
     private float[] accelerometerData = new float[3];
-    private float[] gyroscopeData = new float[3];
-    private float[] magnetometerData = new float[3];
+    //private float[] gyroscopeData = new float[3];
+    //private float[] magnetometerData = new float[3];
 
     // Moving Average Filters for each sensor axis
     private MovingAverageFilter filterAccelX, filterAccelY, filterAccelZ;
-    private MovingAverageFilter filterGyroX, filterGyroY, filterGyroZ;
-    private MovingAverageFilter filterMagX, filterMagY, filterMagZ;
+    //private MovingAverageFilter filterGyroX, filterGyroY, filterGyroZ;
+    //private MovingAverageFilter filterMagX, filterMagY, filterMagZ;
 
     @Override
     public void onCreate() {
@@ -55,11 +57,11 @@ public class AccelerometerService extends Service implements SensorEventListener
     /**
      * Initializes sensor resources, setting up sensors and filters.
      */
-    private void initialiseSensors() {
+    void initialiseSensors() {
         sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         accelerometerSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-        gyroscopeSensor = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
-        magnetometerSensor = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+        //gyroscopeSensor = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+        //magnetometerSensor = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
 
         databaseHelper = new DatabaseHelper(this);
 
@@ -71,12 +73,12 @@ public class AccelerometerService extends Service implements SensorEventListener
         filterAccelX = new MovingAverageFilter(filterSize);
         filterAccelY = new MovingAverageFilter(filterSize);
         filterAccelZ = new MovingAverageFilter(filterSize);
-        filterGyroX = new MovingAverageFilter(filterSize);
-        filterGyroY = new MovingAverageFilter(filterSize);
-        filterGyroZ = new MovingAverageFilter(filterSize);
-        filterMagX = new MovingAverageFilter(filterSize);
-        filterMagY = new MovingAverageFilter(filterSize);
-        filterMagZ = new MovingAverageFilter(filterSize);
+//        filterGyroX = new MovingAverageFilter(filterSize);
+//        filterGyroY = new MovingAverageFilter(filterSize);
+//        filterGyroZ = new MovingAverageFilter(filterSize);
+//        filterMagX = new MovingAverageFilter(filterSize);
+//        filterMagY = new MovingAverageFilter(filterSize);
+//        filterMagZ = new MovingAverageFilter(filterSize);
 
         registerSensor();
     }
@@ -92,17 +94,17 @@ public class AccelerometerService extends Service implements SensorEventListener
             // Handle accelerometer not available
             Log.d("AccelerometerService", "Accelerometer not available");
         }
-        if (gyroscopeSensor != null) {
-            sensorManager.registerListener(this, gyroscopeSensor, SensorManager.SENSOR_DELAY_NORMAL);
-        } else {
-            Log.d("GyroscopeService", "Gyroscope not available");
-        }
+//        if (gyroscopeSensor != null) {
+//            sensorManager.registerListener(this, gyroscopeSensor, SensorManager.SENSOR_DELAY_NORMAL);
+//        } else {
+//            Log.d("GyroscopeService", "Gyroscope not available");
+//        }
 
-        if (magnetometerSensor != null) {
-            sensorManager.registerListener(this, magnetometerSensor, SensorManager.SENSOR_DELAY_NORMAL);
-        } else {
-            Log.d("MagnetometerService", "Magnetometer not available");
-        }
+//        if (magnetometerSensor != null) {
+//            sensorManager.registerListener(this, magnetometerSensor, SensorManager.SENSOR_DELAY_NORMAL);
+//        } else {
+//            Log.d("MagnetometerService", "Magnetometer not available");
+//        }
     }
 
     @Override
@@ -161,43 +163,43 @@ public class AccelerometerService extends Service implements SensorEventListener
     /**
      * Processes and broadcasts the sensor data after applying filters.
      */
-    private void processAndBroadcastSensorData() {
-
-        // Retrieve the average values from the filters
-        float avgAccelX = filterAccelX.getAverage();
-        float avgAccelY = filterAccelY.getAverage();
-        float avgAccelZ = filterAccelZ.getAverage();
-        float avgGyroX = filterGyroX.getAverage();
-        float avgGyroY = filterGyroY.getAverage();
-        float avgGyroZ = filterGyroZ.getAverage();
-        float avgMagX = filterMagX.getAverage();
-        float avgMagY = filterMagY.getAverage();
-        float avgMagZ = filterMagZ.getAverage();
-
-        Log.d("SensorFusionService", "Accel: " + arrayToString(accelerometerData) +
-                " Gyro: " + arrayToString(gyroscopeData) +
-                " Mag: " + arrayToString(magnetometerData));
-
-        // You can now use these averaged values for further processing or fusion
-        // For example, you can implement sensor fusion algorithms here
-
-
-        // ***** maybe put in logic to send the data only when its activated here...
-        // Do i really need to send all the data here, can i not just store it in the db
-        // Send broadcast with averaged sensor data
-        Intent intent = new Intent("SENSOR_FUSION_DATA");
-        intent.putExtra("avgAccelX", avgAccelX);
-        intent.putExtra("avgAccelY", avgAccelY);
-        intent.putExtra("avgAccelZ", avgAccelZ);
-        intent.putExtra("avgGyroX", avgGyroX);
-        intent.putExtra("avgGyroY", avgGyroY);
-        intent.putExtra("avgGyroZ", avgGyroZ);
-        intent.putExtra("avgMagX", avgMagX);
-        intent.putExtra("avgMagY", avgMagY);
-        intent.putExtra("avgMagZ", avgMagZ);
-
-        LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
-    }
+//    private void processAndBroadcastSensorData() {
+//
+//        // Retrieve the average values from the filters
+//        float avgAccelX = filterAccelX.getAverage();
+//        float avgAccelY = filterAccelY.getAverage();
+//        float avgAccelZ = filterAccelZ.getAverage();
+//        float avgGyroX = filterGyroX.getAverage();
+//        float avgGyroY = filterGyroY.getAverage();
+//        float avgGyroZ = filterGyroZ.getAverage();
+//        float avgMagX = filterMagX.getAverage();
+//        float avgMagY = filterMagY.getAverage();
+//        float avgMagZ = filterMagZ.getAverage();
+//
+//        Log.d("SensorFusionService", "Accel: " + arrayToString(accelerometerData) +
+//                " Gyro: " + arrayToString(gyroscopeData) +
+//                " Mag: " + arrayToString(magnetometerData));
+//
+//        // You can now use these averaged values for further processing or fusion
+//        // For example, you can implement sensor fusion algorithms here
+//
+//
+//        // ***** maybe put in logic to send the data only when its activated here...
+//        // Do i really need to send all the data here, can i not just store it in the db
+//        // Send broadcast with averaged sensor data
+//        Intent intent = new Intent("SENSOR_FUSION_DATA");
+//        intent.putExtra("avgAccelX", avgAccelX);
+//        intent.putExtra("avgAccelY", avgAccelY);
+//        intent.putExtra("avgAccelZ", avgAccelZ);
+//        intent.putExtra("avgGyroX", avgGyroX);
+//        intent.putExtra("avgGyroY", avgGyroY);
+//        intent.putExtra("avgGyroZ", avgGyroZ);
+//        intent.putExtra("avgMagX", avgMagX);
+//        intent.putExtra("avgMagY", avgMagY);
+//        intent.putExtra("avgMagZ", avgMagZ);
+//
+//        LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
+//    }
 
     /**
      * Processes accelerometer sensor data.

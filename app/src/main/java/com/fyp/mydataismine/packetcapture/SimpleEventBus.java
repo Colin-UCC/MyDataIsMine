@@ -1,5 +1,7 @@
 package com.fyp.mydataismine.packetcapture;
 
+import com.fyp.mydataismine.networkmonitor.NetworkTrafficData;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -14,6 +16,7 @@ public class SimpleEventBus {
      */
     public interface PacketListener {
         void onPacketReceived(PacketInfo packetInfo);
+        //void onTCPDumpPacketReceived(NetworkTrafficData trafficData);
     }
 
     private static final List<PacketListener> listeners = new ArrayList<>();
@@ -49,5 +52,13 @@ public class SimpleEventBus {
             }
         }
     }
+
+//    public static void postTCPDumpPacket(NetworkTrafficData trafficData) {
+//        synchronized (listeners) {
+//            for (PacketListener listener : listeners) {
+//                listener.onTCPDumpPacketReceived(trafficData);
+//            }
+//        }
+//    }
 }
 

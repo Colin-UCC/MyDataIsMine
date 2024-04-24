@@ -17,6 +17,8 @@ import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
+import org.json.JSONObject;
+
 import java.io.BufferedReader;
 import java.io.FileDescriptor;
 import java.io.IOException;
@@ -29,6 +31,10 @@ import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
 /**
  * VPNNetworkService extends Android's VpnService to implement a custom VPN that captures and analyzes network traffic.
@@ -189,37 +195,45 @@ public class VPNNetworkService extends VpnService {
      * @param ip         The IP address for which to retrieve geolocation info.
      * @param packetInfo The PacketInfo object to be updated with the location data.
      */
+
     private void getGeolocationInfo(String ip, PacketInfo packetInfo) {
-        String apiUrl = "https://api.ipgeolocation.io/ipgeo?apiKey=cb8e51e6c0f1403891496151485de117&ip=" + ip;
+        String apiUrl = "https://api.ipgeolocation.io/ipgeo?apiKey=" + ip;
 
-        new Thread(() -> {
-            try {
-                URL url = new URL(apiUrl);
-                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-                connection.setRequestMethod("GET");
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        executor.execute(() -> {
+            OkHttpClient client = new OkHttpClient();
+            Request request = new Request.Builder()
+                    .url(apiUrl)
+                    .build();
 
-                BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-                StringBuilder response = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    response.append(line);
+            try (Response response = client.newCall(request).execute()) {
+                if (response.isSuccessful() && response.body() != null) {
+                    String jsonResponse = response.body().string();
+                    JSONObject jsonObject = new JSONObject(jsonResponse);
+                    String location = jsonObject.getString("country_name");
+                    String organization = jsonObject.getString("organization");
+
+                    packetInfo.setLocation(location);
+                    packetInfo.setOrganization(organization);
+                } else {
+                    Log.e(TAG, "Geolocation API call failed or limit reached");
+                    // Set default or null values if API fails
+                    packetInfo.setLocation("Unknown");
+                    packetInfo.setOrganization("Unknown");
                 }
-                reader.close();
-
-                // Extract location data from the response
-                String location = extractLocationFromResponse(response.toString());
-
-                // Set the location in the packet info
-                packetInfo.setLocation(location);
-
-                // Now upload the packet info to Firebase
-                uploadPacketToFirebase(packetInfo);
-
             } catch (Exception e) {
                 Log.e(TAG, "Error fetching geolocation info", e);
+                // Set default or null values in case of exceptions
+                packetInfo.setLocation("Error");
+                packetInfo.setOrganization("Error");
+            } finally {
+                // Always upload packet to Firebase regardless of geolocation success
+                uploadPacketToFirebase(packetInfo);
             }
-        }).start();
+        });
+        executor.shutdown();
     }
+
 
     /**
      * Uploads packet information to Firebase, allowing for persistent storage and analysis of the captured packets.

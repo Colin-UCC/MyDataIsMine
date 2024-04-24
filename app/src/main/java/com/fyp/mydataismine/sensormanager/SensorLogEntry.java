@@ -38,6 +38,17 @@ public class SensorLogEntry {
         return timeAccessed;
     }
 
+    public String createUniqueKey() {
+        // Sanitize the key by replacing invalid characters
+        return (packageName + "_" + sensorName + "_" + sensorHandle + "_" + timeAccessed)
+                .replace('.', '_')
+                .replace('#', '_')
+                .replace('$', '_')
+                .replace('[', '_')
+                .replace(']', '_')
+                .replace(' ', '_'); // Replace spaces with underscores
+    }
+
     @Override
     public String toString() {
         return "SensorLogEntry{" +

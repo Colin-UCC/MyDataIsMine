@@ -92,7 +92,7 @@ public class TCPInput implements Runnable
      * @param key The selection key representing the channel ready for connection.
      * @param keyIterator The iterator for the selection keys.
      */
-    private void processConnect(SelectionKey key, Iterator<SelectionKey> keyIterator)
+    void processConnect(SelectionKey key, Iterator<SelectionKey> keyIterator)
     {
         TCB tcb = (TCB) key.attachment();
         Packet referencePacket = tcb.referencePacket;
@@ -129,7 +129,7 @@ public class TCPInput implements Runnable
      * @param key The selection key representing the channel with incoming data.
      * @param keyIterator The iterator for the selection keys.
      */
-    private void processInput(SelectionKey key, Iterator<SelectionKey> keyIterator)
+    void processInput(SelectionKey key, Iterator<SelectionKey> keyIterator)
     {
         keyIterator.remove();
         ByteBuffer receiveBuffer = ByteBufferPool.acquire();

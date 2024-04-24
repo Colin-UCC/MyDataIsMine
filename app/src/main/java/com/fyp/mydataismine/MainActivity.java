@@ -30,13 +30,25 @@ import androidx.work.WorkRequest;
 // Firebase imports
 import com.fyp.mydataismine.auth.LoginActivity;
 import com.fyp.mydataismine.networkmonitor.NetworkMonitorService;
+import com.fyp.mydataismine.packetcapture.PacketInfo;
 import com.fyp.mydataismine.packetcapture.PacketStreamActivity;
+import com.fyp.mydataismine.packetcapture.SimpleEventBus;
 import com.fyp.mydataismine.packetcapture.VPNNetworkService;
 import com.fyp.mydataismine.sensormanager.AccelerometerReading;
 import com.fyp.mydataismine.sensormanager.AccelerometerService;
 import com.fyp.mydataismine.sensormanager.DatabaseHelper;
 import com.fyp.mydataismine.sensormanager.FirebaseWorker;
+import com.fyp.mydataismine.sensormanager.SensorLogEntry;
 import com.fyp.mydataismine.sensormanager.SensorMonitorService;
+import com.github.mikephil.charting.charts.BarChart;
+import com.github.mikephil.charting.components.XAxis;
+import com.github.mikephil.charting.data.BarData;
+import com.github.mikephil.charting.data.BarDataSet;
+import com.github.mikephil.charting.data.BarEntry;
+import com.github.mikephil.charting.formatter.IndexAxisValueFormatter;
+import com.github.mikephil.charting.interfaces.datasets.IBarDataSet;
+import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
+import com.github.mikephil.charting.utils.ColorTemplate;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DatabaseReference;
@@ -53,14 +65,20 @@ import com.github.mikephil.charting.data.LineDataSet;
 // Java standard library imports
 import java.io.File;
 import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
  * Main activity of the application, serving as the central hub for user interaction and service management.
  */
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements SimpleEventBus.PacketListener {
 
     // Class variables
     private FirebaseAuth mAuth;
@@ -70,7 +88,9 @@ public class MainActivity extends AppCompatActivity {
                     testUploadButton, cancelAllWorkButton, btnConvertAndUpload,
                     btnToggleService, goToPacketStreamButton, btnLogDatabase,
                     sensorServiceLogButton;
-    private LineChart chart;
+    private LineChart chart, networkChart, sensorActivityChart;
+
+    //private BarChart sensorActivityChart;
     private LineDataSet xDataSet, yDataSet, zDataSet;
     private LineData lineData;
     private ArrayList<Entry> xValues, yValues, zValues;
@@ -169,6 +189,8 @@ public class MainActivity extends AppCompatActivity {
         return false;
     }
 
+
+
     /**
      * Initializes Firebase services used in the application.
      */
@@ -183,12 +205,19 @@ public class MainActivity extends AppCompatActivity {
     private void setupUI() {
         setupButtons();
         setupChart();
+        setupNetworkChart();
+        //setupBarChart();
+        setupSensorActivityChart();
         createNotificationChannel();
     }
 
     private void setupButtons() {
         startServiceButton = findViewById(R.id.startServiceButton);
         stopServiceButton = findViewById(R.id.stopServiceButton);
+
+        startServiceButton.setOnClickListener(v -> handleServiceStart());
+        stopServiceButton.setOnClickListener(v -> handleServiceStop());
+
         signOutButton = findViewById(R.id.signOutButton);
         testUploadButton = findViewById(R.id.testUploadButton);
         cancelAllWorkButton = findViewById(R.id.cancelAllWorkButton);
@@ -204,9 +233,6 @@ public class MainActivity extends AppCompatActivity {
 
         goToPacketStreamButton = findViewById(R.id.goToPacketStreamButton);
 
-
-        startServiceButton.setOnClickListener(v -> handleServiceStart());
-        stopServiceButton.setOnClickListener(v -> handleServiceStop());
         signOutButton.setOnClickListener(v -> signOut());
 
         sensorServiceLogButton = findViewById(R.id.sensorServiceLogButton);
@@ -281,22 +307,6 @@ public class MainActivity extends AppCompatActivity {
         updateVpnButtonVisibility(isVpnRunning);
     }
 
-    // Method to toggle network monitoring
-    public void toggleNetworkMonitoring(View view) {
-        Button btn = (Button) view;
-        Intent serviceIntent = new Intent(this, NetworkMonitorService.class);
-
-        if (!isMonitoring) {
-            startService(serviceIntent);
-            btn.setText("Stop Monitoring");
-        } else {
-            stopService(serviceIntent);
-            btn.setText("Start Monitoring");
-        }
-
-        isMonitoring = !isMonitoring;
-    }
-
     private void startVpnService() {
         Intent intent = VpnService.prepare(this);
         if (intent != null) {
@@ -321,18 +331,21 @@ public class MainActivity extends AppCompatActivity {
         updateVpnButtonVisibility(false); // Update button visibility based on VPN state
     }
 
-    private void startVpn() {
-        // Intent to start VPN service
-        Intent vpnStartIntent = new Intent(this, VPNNetworkService.class);
-        //vpnStartIntent.setAction(VpnNetworkService.ACTION_START_VPN);
-        startService(vpnStartIntent);
+    // Method to toggle network monitoring
+    public void toggleNetworkMonitoring(View view) {
+        Button btn = (Button) view;
+        Intent serviceIntent = new Intent(this, NetworkMonitorService.class);
 
-        // Make stop button visible
-        stopVpnButton.setVisibility(View.VISIBLE);
-        startVpnButton.setVisibility(View.GONE);
+        if (!isMonitoring) {
+            startService(serviceIntent);
+            btn.setText("Stop Monitoring");
+        } else {
+            stopService(serviceIntent);
+            btn.setText("Start Monitoring");
+        }
+
+        isMonitoring = !isMonitoring;
     }
-
-
 
     private void setupChart() {
         chart = findViewById(R.id.chart);
@@ -352,6 +365,10 @@ public class MainActivity extends AppCompatActivity {
         chart.setData(lineData);
         chart.invalidate(); // Refresh chart
     }
+
+
+
+
 
     /**
      * Checks if the user is currently authorized and redirects to the login screen if not.
@@ -437,8 +454,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateButtonState(boolean isServiceRunning) {
-        startServiceButton.setEnabled(!isServiceRunning);
-        stopServiceButton.setEnabled(isServiceRunning);
+        if (isServiceRunning) {
+            startServiceButton.setVisibility(View.GONE);
+            stopServiceButton.setVisibility(View.VISIBLE);
+            stopServiceButton.setEnabled(true);
+        } else {
+            startServiceButton.setVisibility(View.VISIBLE);
+            stopServiceButton.setVisibility(View.GONE);
+            stopServiceButton.setEnabled(false);
+        }
     }
 
     private void createNotificationChannel() {
@@ -465,31 +489,6 @@ public class MainActivity extends AppCompatActivity {
         // Single receiver for multiple sensors
         LocalBroadcastManager.getInstance(this).registerReceiver(mMessageReceiver, new IntentFilter("ACCELEROMETER_DATA"));
     }
-
-    private BroadcastReceiver mMessageReceiver2 = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            // Extract accelerometer data from the intent
-            if (intent.getAction().equals("FUSION_DATA")) {
-                float xAccel = intent.getFloatExtra("Accel x", 0f);
-                float yAccel = intent.getFloatExtra("Accel y", 0f);
-                float zAccel = intent.getFloatExtra("Accel z", 0f);
-
-                float xGryo = intent.getFloatExtra("Gyro x", 0f);
-                float yGryo = intent.getFloatExtra("Gyro y", 0f);
-                float zGryo = intent.getFloatExtra("Gyro z", 0f);
-
-                float xMagneto = intent.getFloatExtra("Magneto x", 0f);
-                float yMagneto = intent.getFloatExtra("Magneto y", 0f);
-                float zMagneto = intent.getFloatExtra("Magneto z", 0f);
-
-
-                // TODO: fix this so the add entry takes in arrays instead of values
-                // Update the chart with the received accelerometer data
-                //addEntry(xAccel, yAccel, zAccel, xGryo, yGryo, zGryo, xMagneto, yMagneto, zMagneto);
-            }
-        }
-    };
 
     private BroadcastReceiver mMessageReceiver = new BroadcastReceiver() {
         @Override
@@ -573,17 +572,6 @@ public class MainActivity extends AppCompatActivity {
 
         return nextUploadTime.getTimeInMillis() - now.getTimeInMillis();
 
-//        calendar.add(Calendar.DAY_OF_YEAR, 1);
-//        calendar.set(Calendar.HOUR_OF_DAY, 23);
-//        calendar.set(Calendar.MINUTE, 59);
-//        calendar.set(Calendar.SECOND, 0);
-//        calendar.set(Calendar.MILLISECOND, 0);
-
-//        if (calendar.getTimeInMillis() < System.currentTimeMillis()) {
-//            calendar.add(Calendar.DAY_OF_YEAR, 1);
-//        }
-
-        //return calendar.getTimeInMillis() - System.currentTimeMillis();
     }
 
     /**
@@ -608,7 +596,158 @@ public class MainActivity extends AppCompatActivity {
         Toast.makeText(MainActivity.this, "Daily upload scheduled successfully", Toast.LENGTH_SHORT).show();
     }
 
+    @Override
+    protected void onStart() {
+        super.onStart();
+        SimpleEventBus.registerListener(this);
+        LocalBroadcastManager.getInstance(this).registerReceiver(sensorUsageReceiver, new IntentFilter("com.fyp.mydataismine.SENSOR_USAGE"));
+    }
+
+    @Override
+    protected void onStop() {
+        SimpleEventBus.unregisterListener(this);
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(sensorUsageReceiver);
+        super.onStop();
+    }
+
+    @Override
+    public void onPacketReceived(PacketInfo packetInfo) {
+        //if ("UDP".equals(packetInfo.getProtocol())) {
+            runOnUiThread(() -> updateChart(packetInfo));
+        //}
+    }
+
+    private void setupNetworkChart() {
+
+        networkChart = findViewById(R.id.networkChart);
+        networkChart.getDescription().setEnabled(false);
+        networkChart.setTouchEnabled(true);
+        networkChart.setDragEnabled(true);
+        networkChart.setScaleEnabled(true);
+        networkChart.setDrawGridBackground(false);
+
+        XAxis x = networkChart.getXAxis();
+        x.setDrawLabels(false);  // We might not show X labels for clarity
+        x.setDrawGridLines(false);
+
+        YAxis y = networkChart.getAxisLeft();
+        y.setLabelCount(6, false);
+        y.setTextColor(Color.WHITE);
+        y.setPosition(YAxis.YAxisLabelPosition.OUTSIDE_CHART);
+        y.setDrawGridLines(true);
+        y.setAxisLineColor(Color.WHITE);
+
+        networkChart.getAxisRight().setEnabled(false);
+
+        // Initialize with empty data
+        LineData data = new LineData();
+        networkChart.setData(data);
+    }
+
+    private void updateChart(PacketInfo packetInfo) {
+        LineData data = networkChart.getData();
+
+        if (data != null) {
+            ILineDataSet set = data.getDataSetByLabel("TCP/UDP Payload Size", true);
+            if (set == null) {
+                set = createSet();
+                data.addDataSet(set);
+            }
+
+            // Here, we add the entry and assume the X value is the count of entries already present.
+            // This will automatically increment X, ensuring each new data point moves the graph forward.
+            set.addEntry(new Entry(set.getEntryCount(), packetInfo.getPayloadSize()));
+
+            data.notifyDataChanged();
+            networkChart.notifyDataSetChanged();
+
+            // Move the view to the last entry, showing the latest n entries.
+            networkChart.setVisibleXRangeMaximum(50); // For example, show 50 entries at a time
+            networkChart.moveViewToX(data.getEntryCount() - 51); // Moves to the latest entry
+        }
+    }
+
+    private LineDataSet createSet() {
+        LineDataSet set = new LineDataSet(null, "TCP/UDP Payload Size");
+        set.setLineWidth(2.5f);
+        set.setColor(Color.BLUE);
+        set.setCircleColor(Color.RED);
+        set.setValueTextColor(Color.WHITE);
+        set.setCircleRadius(3f);
+        set.setFillAlpha(65);
+        set.setFillColor(Color.BLUE);
+        set.setHighLightColor(Color.rgb(244, 117, 117));
+        set.setValueTextSize(9f);
+        set.setDrawValues(false);
+        return set;
+    }
 
 
+    private BarDataSet createSet(String sensorName) {
+        List<BarEntry> entries = new ArrayList<>();
+        BarDataSet set = new BarDataSet(entries, sensorName);
+        set.setColors(ColorTemplate.MATERIAL_COLORS);
+        return set;
+    }
+
+    private void setupSensorActivityChart() {
+        sensorActivityChart = findViewById(R.id.sensorActivityChart);
+        sensorActivityChart.getDescription().setEnabled(false);
+        sensorActivityChart.setTouchEnabled(true);
+        sensorActivityChart.setDragEnabled(true);
+        sensorActivityChart.setScaleEnabled(true);
+        sensorActivityChart.getXAxis().setValueFormatter(new IndexAxisValueFormatter() {
+            @Override
+            public String getFormattedValue(float value) {
+                // Assuming value is a timestamp in milliseconds
+                return new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date((long) value));
+            }
+        });
+
+        LineData data = new LineData();
+        sensorActivityChart.setData(data);
+        sensorActivityChart.invalidate(); // Refresh the chart
+    }
+
+    private BroadcastReceiver sensorUsageReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if ("com.fyp.mydataismine.SENSOR_USAGE".equals(intent.getAction())) {
+                long timestamp = intent.getLongExtra("timestamp", System.currentTimeMillis());
+                float value = intent.getFloatExtra("value", 1); // Assuming '1' denotes an activation
+                addSensorDataToChart(timestamp, value);
+            }
+        }
+    };
+
+
+    public void addSensorDataToChart(long timestamp, float value) {
+        LineData data = sensorActivityChart.getData();
+
+        if (data != null) {
+            ILineDataSet set = data.getDataSetByIndex(0);
+            if (set == null) {
+                set = createSetSensorActivity();
+                data.addDataSet(set);
+            }
+
+            data.addEntry(new Entry(timestamp, value), 0);
+            data.notifyDataChanged();
+            sensorActivityChart.notifyDataSetChanged();
+            sensorActivityChart.setVisibleXRangeMaximum(60000); // show for example last minute
+            sensorActivityChart.moveViewToX(data.getEntryCount() - 61);
+        }
+    }
+
+    private LineDataSet createSetSensorActivity() {
+        LineDataSet set = new LineDataSet(null, "Sensor Activations");
+        set.setLineWidth(2.5f);
+        set.setColor(Color.BLUE);
+        set.setCircleColor(Color.BLUE);
+        set.setValueTextColor(Color.WHITE);
+        set.setValueTextSize(9f);
+        set.setDrawValues(false);
+        return set;
+    }
 
 }

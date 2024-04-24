@@ -103,15 +103,15 @@ public class TCB
         }
     }
 
-    private void closeChannel()
-    {
-        try
-        {
-            channel.close();
-        }
-        catch (IOException e)
-        {
-            // Ignore
+    private void closeChannel() {
+        if (channel != null) {
+            try {
+                if (channel.isOpen()) {
+                    channel.close();
+                }
+            } catch (IOException e) {
+                // TODO logs
+            }
         }
     }
 }

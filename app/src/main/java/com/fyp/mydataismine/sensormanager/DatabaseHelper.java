@@ -13,14 +13,14 @@ import java.util.List;
 public class DatabaseHelper extends SQLiteOpenHelper {
     // Database Version and Name
     private static final int DATABASE_VERSION = 1;
-    private static final String DATABASE_NAME = "sensorData";
+    protected static final String DATABASE_NAME = "sensorData";
 
     // Table name and Columns names
-    private static final String TABLE_NAME = "readings";
+    protected static final String TABLE_NAME = "readings";
     private static final String COLUMN_ID = "id";
-    private static final String COLUMN_X = "x";
-    private static final String COLUMN_Y = "y";
-    private static final String COLUMN_Z = "z";
+    protected static final String COLUMN_X = "x";
+    protected static final String COLUMN_Y = "y";
+    protected static final String COLUMN_Z = "z";
     private static final String COLUMN_TIMESTAMP = "timestamp";
 
     /**
